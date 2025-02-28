@@ -34,7 +34,7 @@
 ### 1. Copy this 2 file from GitHub
 ![image_alt](https://github.com/chungshing/INF2009-Project-T13/blob/main/Raspberry_Pi/screenshot/github.PNG?raw=true)
 ### 2. Create new folder and place this 2 file inside RPI
-![image_alt](https://github.com/chungshing/INF2009-Project-T13/blob/main/Raspberry_Pi/screenshot/pi_2_file.PNG?raw=true)
+![image_alt](https://github.com/chungshing/INF2009-Project-T13/blob/main/Raspberry_Pi/screenshot/rpi.PNG?raw=true)
 ### 3. Create and Activate Virtual Environment
 ```bash
 python3 -m venv project
