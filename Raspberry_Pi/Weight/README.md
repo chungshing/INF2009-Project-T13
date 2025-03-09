@@ -48,7 +48,7 @@ python calibrate.py
 
 ---
 
-## ⚖️ Step 2: Read Weight (`read_weight.py`)
+## Step 2: Read Weight (`read_weight.py`)
 Once you have the scale factor, edit `read_weight.py` and update the following line:
 ```python
 KNOWN_SCALE_FACTOR = <your_scale_factor>
