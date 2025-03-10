@@ -665,15 +665,6 @@ def nutritional_intake_aggrid():
 
     grid_options = gb.build()
 
-    st.info(
-        "**Instructions:**\n"
-        "- **Search/filter** via the side panel.\n"
-        "- **Sort** columns by clicking headers.\n"
-        "- **Edit** cells in-place (Dish Name, nutrient columns, etc.).\n"
-        "- Then click **Save Changes** to commit your edits to the database.\n"
-        "- Note: No row deletion is available in this mode."
-    )
-
     # Show the grid
     grid_response = AgGrid(
         df,
