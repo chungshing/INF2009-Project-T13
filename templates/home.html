@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .main-container {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .left-panel {
+        width: 210px;
+        padding: 10px;
+        align-items: center;
+    }
+
+    .left-panel h2 {
+        padding-left: 20px;
+        padding-bottom: 10px;
+    }
+
+    .center-panel {
+        padding-left: 75px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .scrollable-list {
+        max-height: 500px;
+        overflow-y: auto;
+        padding-right: 15px;
+    }
+
+    .uploaded-images {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .thumbnail-container {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .thumbnail-image {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+    }
+
+    .delete-icon {
+        background-color: red;
+        border: none;
+        padding: 5px;
+        cursor: pointer;
+        border-radius: 50%;
+        height: 33px;
+        width: 33px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-left: 15px;
+    }
+
+    .centered-image {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        background-color: white;
+        width: 600px;
+        height: 400px;
+        margin-top: 100px;
+        position: relative;
+    }
+
+    .selected-image {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        background-color: white;
+    }
+
+    .form-group {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        position: absolute;
+        bottom: -110px;
+    }
+
+    .fixed-textarea {
+        width: calc(100% - 50px);
+        height: 100px;
+        resize: none;
+        margin-right: 10px;
+    }
+
+    .fixed-textarea:focus {
+        border-color: #006400;
+        box-shadow: 0 0 5px #006400;
+        outline: none;
+    }
+
+    .submit-arrow {
+        background: none;
+        border: 2px solid #000;
+        border-radius: 50%;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 5px;
+        outline: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 28px;
+        line-height: 0;
+        padding-top: 1px;
+    }
+
+    .submit-arrow:hover {
+        background-color: #000;
+        color: white;
+    }
+
+    .submit-arrow:focus {
+        outline: none;
+        box-shadow: 0 0 5px #006400;
+        border-color: #006400;
+    }
+
+    .analysis-result-container {
+        position: absolute;
+        bottom: 125px;
+        left: 685px;
+        right: 75px;
+        padding: 10px;
+        width: 550px;
+        border: 1px solid #ddd;
+        background-color: #f9f9f9;
+        min-height: 100px;
+        z-index: 1000;
+        display: none;
+    }
+
+
+    .scrollable-list {
+        max-height: 500px;
+        overflow-y: auto;
+        padding-right: 15px;
+    }
+
+    .scrollable-list::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .scrollable-list::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        transition: background-color 0.3s ease, width 0.3s ease;
+    }
+
+    .scrollable-list::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(0, 0, 0, 0.5);
+        width: 12px;
+    }
+</style>
+
+<div class="main-container">
+    <div class="left-panel">
+        <h2>Uploaded Images</h2>
+        <div class="scrollable-list" id="scrollableList">
+            <div class="uploaded-images">
+                {% for image in uploaded_images %}
+                <div class="thumbnail-container">
+                    <form method="post" action="{{ url_for('select_image') }}" style="display: inline;">
+                        <input type="hidden" name="image_id" value="{{ image.id }}">
+                        <button type="submit" style="background: none; border: none; padding: 0;">
+                            <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" class="thumbnail-image img-thumbnail {% if image.id == selected_image_id|int %}selected{% endif %}">
+                        </button>
+                    </form>
+                    <form method="post" action="{{ url_for('delete_image') }}" style="display: inline;">
+                        <input type="hidden" name="image_id" value="{{ image.id }}">
+                        <button type="submit" class="delete-icon"><i class="fa fa-trash"></i></button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="center-panel">
+        <div class="centered-image">
+            {% if selected_image %}
+            <img src="{{ url_for('static', filename='uploads/' + selected_image.filename) }}" class="selected-image img-fluid" id="selected-image">
+            {% else %}
+            <img src="{{ url_for('static', filename='uploads/' + uploaded_images[0].filename) }}" class="selected-image img-fluid" id="selected-image">
+            {% endif %}
+            <!-- Text input form -->
+            <form id="analysisForm" method="post" action="{{ url_for('home') }}" class="mt-4 form-group">
+                <textarea class="form-control fixed-textarea" id="inputText" name="input_text" placeholder="Enter description (Optional)"></textarea>
+                <button type="submit" class="submit-arrow">&rarr;</button>
+            </form>
+        </div>
+        <div class="analysis-result-container" id="analysisResultContainer">
+            {% if analysis_result %}
+            <h5>Analysis Result:</h5>
+            <p>{{ analysis_result|replace('\n', '<br>')|safe }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for drag and drop upload -->
+<form id="dragDropForm" method="post" action="{{ url_for('upload_image') }}" enctype="multipart/form-data" style="display: none;">
+    <input type="file" id="dragDropInput" name="image">
+</form>
+
+<!-- Include jQuery library -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+<script>
+    $(document).ready(function () {
+        // Restore scroll position from localStorage
+        var scrollableList = $('#scrollableList');
+        var scrollTop = localStorage.getItem('scrollPosition');
+        if (scrollTop) {
+            scrollableList.scrollTop(scrollTop);
+        }
+
+        // Save scroll position to localStorage
+        scrollableList.on('scroll', function () {
+            localStorage.setItem('scrollPosition', scrollableList.scrollTop());
+        });
+
+        // Pre-select the first image in the list if no image is selected
+        if ($('.thumbnail-image.selected').length === 0 && $('.thumbnail-image').length > 0) {
+            $('.thumbnail-image').first().addClass('selected');
+            $('#selected-image').attr('src', "{{ url_for('static', filename='uploads/') }}" + $('.thumbnail-image').first().attr('src').split('/').pop());
+            $('#selected-image-id').val($('.thumbnail-image').first().parent().find('input[name="image_id"]').val());
+        }
+
+        // Handle drag-and-drop upload
+        $(document).on('dragover', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+
+        $(document).on('drop', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            var files = event.originalEvent.dataTransfer.files;
+            if (files.length > 0) {
+                var fileInput = $('#dragDropInput');
+                fileInput[0].files = files;
+                localStorage.setItem('imageUploaded', 'true'); // Set the flag before submitting the form
+                $('#dragDropForm').submit();
+            }
+        });
+
+        // Scroll to bottom if image was uploaded
+        if (localStorage.getItem('imageUploaded') === 'true') {
+            scrollableList.scrollTop(scrollableList[0].scrollHeight);
+            localStorage.removeItem('imageUploaded'); // Clear the flag
+        }
+
+        function showFlashMessage(message, category) {
+            var flashMessageDiv = '<div class="alert alert-' + category + '" role="alert">' + message + '</div>';
+            $('.container.centered-container').prepend(flashMessageDiv);
+            setTimeout(function() {
+                $(".alert").fadeOut("slow", function() {
+                    $(this).remove();
+                });
+            }, 5000);
+        }
+
+        // Handle Enter key press to submit the form
+        $('#inputText').on('keypress', function (e) {
+            if (e.which === 13 && !e.shiftKey) {
+                e.preventDefault();
+                $('#analysisForm').submit();
+            }
+        });
+
+        // Show analysis result container if there is a result
+        {% if analysis_result %}
+        $('#analysisResultContainer').show();
+        {% endif %}
+    });
+</script>
+
+{% endblock %}
