@@ -271,65 +271,69 @@ def extract_info_from_response(response):
 
 def home():
     st.markdown("<h1 style='text-align: center;'>HawkerScan</h1>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
 
     with flask_app.test_request_context('/home'):
         user = db.session.get(User, st.session_state['user_id'])
         if user and user.is_authenticated:
+            # Greeting if needed
             if not st.session_state['chat_history']:
                 st.session_state['chat_history'].append({
                     "role": "assistant",
-                    "content": f"Welcome! Please upload an image to obtain and track nutrition. "
+                    "content": f"Welcome! Please upload an image to obtain and track nutrition.\n"
                                f"**Your PI API Key**: `{user.api_key}`"
                 })
 
-            # Sidebar for image uploader
+            # 1) Sidebar: Image Uploader
             with st.sidebar:
                 uploaded_file = st.file_uploader("Upload an image", type=ALLOWED_EXTENSIONS, key='file_uploader')
-                if uploaded_file is not None and allowed_file(uploaded_file.name):
-                    # Get file details
+                if uploaded_file and allowed_file(uploaded_file.name):
                     file_details = {"name": uploaded_file.name, "size": uploaded_file.size}
                     if st.session_state.get('last_uploaded_file_details') != file_details:
                         st.session_state['last_uploaded_file_details'] = file_details
 
-                        # Save the file
+                        # Save file
                         file_path = save_file(uploaded_file)
                         if file_path:
-                            st.session_state['uploaded_files'].append(uploaded_file.name)
                             st.session_state['selected_image'] = file_path
-                            st.session_state['context'] = []  # Reset context with new image
-                            # Display the image in the chat history
+                            # Reset dish name / mass
+                            st.session_state['dish_name'] = None
+                            st.session_state['dish_mass'] = None
+                            # Log it in chat
                             st.session_state['chat_history'].append({
                                 "role": "user",
                                 "content": None,
                                 "image": file_path
                             })
-                            # Reset the global variables when new image is uploaded
-                            st.session_state.dish_name = None
-                            st.session_state.dish_mass = None
-                            st.session_state.ingredients = []
-                            st.session_state.ingredients_mass = []
 
-                            # Automatically process the uploaded image
-                            process_uploaded_image()
-
-            # Display chat history
-            for i, message in enumerate(st.session_state.chat_history):
-                if message["role"] == "user":
-                    with st.chat_message(name="user", avatar="user"):
-                        if message.get("image") is not None:
-                            # Limit the displayed image size to 512 pixels
-                            st.image(message["image"], caption='User uploaded image', width=512, use_column_width=False)
-                        elif message.get("content") is not None:
+            # 2) Display chat messages (assistant & user)
+            for message in st.session_state['chat_history']:
+                if message["role"] == "assistant":
+                    with st.chat_message("assistant"):
+                        if message.get("content"):
                             st.markdown(message["content"])
+                        if message.get("image"):
+                            st.image(message["image"], width=512)
                 else:
-                    with st.chat_message(name="assistant", avatar="assistant"):
-                        st.markdown(message.get("content", ""))
-                        if message.get("image") is not None:
-                            st.image(message["image"], caption="Assistant's Image", width=512, use_column_width=False)
+                    with st.chat_message("user"):
+                        if message.get("content"):
+                            st.markdown(message["content"])
+                        if message.get("image"):
+                            st.image(message["image"], width=512)
 
-            # Clear uploaded files after processing
-            st.session_state['uploaded_files'] = []
+            # 3) Show the dish-mass form at the bottom, but only if there's an image to process
+            #    and have yet to process it (i.e. st.session_state['selected_image'] is still set).
+            if st.session_state.get('selected_image'):
+                with st.form("mass_form"):
+                    st.write("Enter the approximate mass of the dish (grams):")
+                    mass_input = st.number_input("Dish Mass (g):", min_value=1, max_value=5000, value=150)
+                    submit_mass = st.form_submit_button("Calculate Nutritional Info")
+
+                if submit_mass:
+                    # Process the image with the given mass
+                    process_uploaded_image(mass_input)
+                    # Clear the selected_image so the form won't appear again
+                    st.session_state['selected_image'] = None
+                    st.rerun()
 
 
 def process_api_image(image: Image.Image, mass: float, user_id: int):
@@ -392,82 +396,72 @@ def process_api_image(image: Image.Image, mass: float, user_id: int):
         "db_insertion": db_insertion
     }
 
-def process_uploaded_image():
+
+def process_uploaded_image(mass_value):
     image_path = st.session_state['selected_image']
-    if os.path.exists(image_path):
-        # Load the image
-        image = Image.open(image_path).convert("RGB")
+    if not os.path.exists(image_path):
+        st.warning("No image found. Please upload again.")
+        return
 
-        max_size = (512, 512)
-        image.thumbnail(max_size, Resampling.LANCZOS)
+    # 1) Classify the image
+    image = Image.open(image_path).convert("RGB")
+    image.thumbnail((512, 512), Resampling.LANCZOS)
 
-        imagefile = image_path
-        user_message = "Identify the dish in this image."
-        bot_response, new_context = analyze_image(imagefile, user_message, st.session_state['context'])
-        st.session_state['context'] = new_context
-        bot_response_lower = bot_response.lower()
+    classification, _ = analyze_image(image_path, "Identify the dish in this image.", context=[])
 
-        # Display the classification result as assistant's message
-        classification_message = f"**Classification Result:** {bot_response}"
+    classification_message = f"**Classification Result:** {classification}"
+    st.session_state['chat_history'].append({
+        "role": "assistant",
+        "content": classification_message,
+        "image": None
+    })
+
+    # 2) Extract the dish name
+    info = extract_info_from_response(classification)
+    dish_name = st.session_state.get('dish_name', None)
+    if not dish_name:
         st.session_state['chat_history'].append({
             "role": "assistant",
-            "content": classification_message,
+            "content": "No valid dish name found from AI classification.",
             "image": None
         })
+        return
 
-        # Extract information from the response
-        info = extract_info_from_response(bot_response)
-        print(info)
+    # 3) Use the mass_value passed in
+    nutritional_values = get_nutritional_values_local(dish_name, mass_value)
+    if nutritional_values == "Not found":
+        st.session_state['chat_history'].append({
+            "role": "assistant",
+            "content": "Dish recognized, but no matching nutritional info found.",
+            "image": None
+        })
+        return
 
-        # ---------------------
-        # Nutritional Information
-        # ---------------------
-        dish_name = st.session_state.dish_name
-        dish_mass = 150 # to replace with pi acquired data (was this before: st.session_state.dish_mass)
-        if dish_name and dish_mass:
-            nutritional_values = get_nutritional_values_local(dish_name, dish_mass)
+    # 4) Insert into DB
+    record_data = {
+        "user_id": st.session_state['user_id'],
+        "dish_name": dish_name,
+        "date_consumed": datetime.utcnow(),
+    }
+    for nutrient, field_name in nutrient_field_mapping.items():
+        record_data[field_name] = nutritional_values.get(nutrient, 0.0)
 
-            if nutritional_values != "Not found":
-                # Build a dictionary for the record data
-                record_data = {
-                    "user_id": st.session_state['user_id'],
-                    "dish_name": dish_name,
-                    "date_consumed": datetime.utcnow(),
-                }
+    with flask_app.test_request_context():
+        intake_record = NutritionalIntake(**record_data)
+        db.session.add(intake_record)
+        db.session.commit()
 
-                # Use the mapping to add only the available nutrients (or set to 0.0 if missing)
-                for nutrient, field_name in nutrient_field_mapping.items():
-                    record_data[field_name] = nutritional_values.get(nutrient, 0.0)
+    # 5) Show final nutritional info
+    nutritional_message = "### Nutritional Information:\n" + "\n".join(
+        f"- **{nutrient}:** {nutritional_values.get(nutrient, 0.0):.2f}"
+        for nutrient in nutrient_field_mapping.keys()
+    )
+    st.session_state['chat_history'].append({
+        "role": "assistant",
+        "content": nutritional_message,
+        "image": None
+    })
 
-                # Create and insert the record
-                intake_record = NutritionalIntake(**record_data)
-                with flask_app.test_request_context():
-                    db.session.add(intake_record)
-                    db.session.commit()
-
-                # Optionally, format the nutritional info for display:
-                nutritional_message = "### Nutritional Information:\n" + "\n".join(
-                    f"- **{nutrient}:** {nutritional_values.get(nutrient, 0.0):.2f}"
-                    for nutrient in nutrient_field_mapping.keys()
-                )
-                st.session_state['chat_history'].append({
-                    "role": "assistant",
-                    "content": nutritional_message,
-                    "image": None
-                })
-
-            else:
-                st.session_state['chat_history'].append({
-                    "role": "assistant",
-                    "content": "Nutritional information not found for the dish.",
-                    "image": None
-                })
-        else:
-            st.session_state['chat_history'].append({
-                "role": "assistant",
-                "content": "Dish name or mass not available for nutritional information.",
-                "image": None
-            })
 
 def nutritional_intake():
     st.markdown("<h2 style='text-align:center;'>Nutritional Intake</h2>", unsafe_allow_html=True)
