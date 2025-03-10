@@ -23,6 +23,14 @@
 
 ---
 
+## This is what your directory should look like
+
+![image](https://github.com/user-attachments/assets/e35e247d-2a26-4014-8236-b8cac7e845b2)
+
+
+Download the AI Model here:
+https://drive.google.com/file/d/1aWvIrnFL8qRI5gsMV3Na_7tkF4Ed65z4/view?usp=sharing
+
 ## Ensure a virtual enviroment is created wherever the project folder is created:
 
 python -m venv .venv
