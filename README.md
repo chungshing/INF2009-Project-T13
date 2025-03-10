@@ -26,7 +26,7 @@
 ## Ensure a virtual enviroment is created wherever the project folder is created:
 
 python -m venv .venv
-# On Windows:
+### On Windows:
 .\.venv\Scripts\activate
 
 or if using pycharm, you can use terminal in pycharm and check if a venv is already created. (It should be if you configured a python interpreter, if not run the code above)
@@ -37,7 +37,7 @@ pip install -r requirements.txt
 
 
 ## Running the application
-# An example would be like "(.venv) PS C:\Users\Kingston\PycharmProjects\HawkerScan> streamlit run app.py"
+### An example would be like "(.venv) PS C:\Users\Kingston\PycharmProjects\HawkerScan> streamlit run app.py"
 
 streamlit run app.py
 
@@ -45,6 +45,6 @@ streamlit run app.py
 
 A couple problems you might encounter:
 
-Wrong version or missing libraries, the console should tell you which libraries you might be missing ("pip install -r requirements.txt", sometimes doesn't install some libraries properly, so I also had to manually pip install some libraries, sometimes you do have the libraries but it still says not found, in that case pip uninstall and pip install again, if the same error occurs again, try a different version of that library)
+### Wrong version or missing libraries, the console should tell you which libraries you might be missing ("pip install -r requirements.txt", sometimes doesn't install some libraries properly, so I also had to manually pip install some libraries, sometimes you do have the libraries but it still says not found, in that case pip uninstall and pip install again, if the same error occurs again, try a different version of that library)
 
-Ensure Transformers version is 4.41.1 (transformers==4.41.1), otherwise when uploading you might encounter some errors with dimensions or cache error.
+### Ensure Transformers version is 4.41.1 (transformers==4.41.1), otherwise when uploading you might encounter some errors with dimensions or cache error.
