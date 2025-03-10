@@ -21,8 +21,8 @@ This repository provides Python scripts for interfacing a **Raspberry Pi** with 
 |-----------|------------------|
 | **VCC**   | **5V (Pin 2 or 4)**  |
 | **GND**   | **GND (Pin 6)**  |
-| **DT**    | **GPIO5 (Pin 29)** |
-| **SCK**   | **GPIO6 (Pin 31)** |
+| **DT**    | **GPIO6 (Pin 31)** |
+| **SCK**   | **GPIO5 (Pin 29)** |
 
 ---
 
@@ -30,7 +30,9 @@ This repository provides Python scripts for interfacing a **Raspberry Pi** with 
 
 Before running the scripts, install the required library:
 ```bash
-pip install hx711
+pip install RPi.GPIO
+pip install numpy
+pip install 'git+https://github.com/gandalf15/HX711.git#egg=HX711&subdirectory=HX711_Python3'
 ```
 
 ---
