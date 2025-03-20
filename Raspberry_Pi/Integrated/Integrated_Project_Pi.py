@@ -12,7 +12,7 @@ import board
 import neopixel
 
 # API Endpoint
-url = "http://192.168.1.209:5000/api/process-image"
+url = "http://f7e3-103-30-215-142.ngrok-free.app/api/process-image"
 api_key = "keCnRXk6xJ5qtq3VEkb5nmiMcj2n1yCy"
 
 # Set the directory to save images
@@ -45,27 +45,76 @@ hx.set_scale_ratio(KNOWN_SCALE_FACTOR)
 
 # LED Configuration
 LED_PIN = board.D18
-NUM_LEDS = 1
-BRIGHTNESS = 0.5
+NUM_LEDS = 12
+BRIGHTNESS = 0.1
 
 # Initialize the LED
 pixels = neopixel.NeoPixel(LED_PIN, NUM_LEDS, brightness=BRIGHTNESS, auto_write=False)
 
 previous_frame = None  # Global variable for motion detection
 
+# Flag to control LED animation
+led_running = False
+
 # Flag to control the webcam GUI
 gui_running = True
 
-def blink_red_led():
-    """Blink the red LED for 5 seconds and then stop."""
-    for _ in range(5):  # Blink for 5 seconds (0.5s ON, 0.5s OFF)
-        pixels.fill((255, 0, 0))  # Red ON
+def blink_red_led(index=0, blink_duration=5, blink_delay=0.5, color=(255, 0, 0)):  # Red light
+    start_time = time.time()
+    try:
+        while time.time() - start_time < blink_duration:  # Run for blink_duration seconds
+            pixels.fill((0, 0, 0))  # Turn off all LEDs
+            pixels[index] = color  # Turn on selected LED in red
+            pixels.show()
+            time.sleep(blink_delay)  # LED stays on
+            
+            pixels.fill((0, 0, 0))  # Turn off LED
+            pixels.show()
+            time.sleep(blink_delay)  # LED stays off
+    finally:
+        pixels.fill((0, 0, 0))  # Ensure all LEDs are off at the end
         pixels.show()
-        time.sleep(0.5)
+        
+# def blink_red_led():
+#     """Blink the red LED for 5 seconds and then stop."""
+#     for _ in range(5):  # Blink for 5 seconds (0.5s ON, 0.5s OFF)
+#         pixels.fill((255, 0, 0))  # Red ON
+#         pixels.show()
+#         time.sleep(0.5)
+# 
+#         pixels.fill((0, 0, 0))  # OFF
+#         pixels.show()
+#         time.sleep(0.5)
 
-        pixels.fill((0, 0, 0))  # OFF
+def led_circle(delay=0.2, color=(255, 255, 0)):
+    """Cycles through LEDs one by one until stopped."""
+    global led_running
+    led_running = True
+    try:
+        while led_running:
+            for i in range(NUM_LEDS):
+                if not led_running:
+                    break  # Stop animation when flag is False
+                pixels.fill((0, 0, 0))  # Turn off all LEDs
+                pixels[i] = color  # Turn on the current LED
+                pixels.show()
+                time.sleep(delay)
+    finally:
+        pixels.fill((0, 0, 0))  # Ensure all LEDs turn off
         pixels.show()
-        time.sleep(0.5)
+        
+def stop_led_circle():
+    """Stops the LED circle animation."""
+    global led_running
+    led_running = False
+
+def show_green_light(duration=5, color=(0, 255, 0)):
+    """Turns all LEDs green for a specified duration, then turns them off."""
+    pixels.fill(color)  # Turn all LEDs green
+    pixels.show()
+    time.sleep(duration)  # Wait
+    pixels.fill((0, 0, 0))  # Turn off LEDs
+    pixels.show()
 
 def read_weight():
     """ Read weight from the load cell """
@@ -90,13 +139,21 @@ def show_camera_gui():
         # Press 'q' to exit
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
+            print("Exiting program...")
             gui_running = False
             break
 
-    cv2.destroyAllWindows()
+    # Properly close camera and windows
     camera.release()
+    cv2.destroyAllWindows()
 
-def detect_motion(frame, threshold=10000):
+    # Cleanup GPIO to prevent issues
+    GPIO.cleanup()
+    
+    # Exit program
+    os._exit(0)
+
+def detect_motion(frame, threshold=30000):
     """Detect motion by comparing frame differences."""
     global previous_frame
     if previous_frame is None:
@@ -111,10 +168,11 @@ def detect_motion(frame, threshold=10000):
     previous_frame = frame  # Update previous frame
     return motion_score > threshold  # Returns True if motion is detected
 
-def detect_blurry(image, threshold=80):
+def detect_blurry(image, threshold=150):
     """Detect if an image is blurry using Laplacian variance method."""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     variance = cv2.Laplacian(gray, cv2.CV_64F).var()
+    print(f"Variance: {variance}")
     return variance < threshold  # Returns True if image is blurry
 
 def read_stable_weight():
@@ -129,7 +187,7 @@ def read_stable_weight():
     while len(weight_values) < 10:
         weight = read_weight()
         # to debug the weight value
-        #print(f"Weight: {weight:.2f} g")
+        print(f"Weight: {weight:.2f} g")
         weight_values.append(weight)
         time.sleep(1)
         
@@ -160,14 +218,14 @@ def capture_and_save():
         return
         
     # Detect motion or blurriness
-    #if detect_motion(frame):
-     #   print("Red Indicator: Motion detected. Please stay still.")
-      #  blink_red_led()
-       # return
+#     if detect_motion(frame):
+#         print("Red Indicator: Motion detected. Please stay still.")
+#         blink_red_led()
+#         return
         
     if detect_blurry(frame):
         print("Red Indicator: Image is blurry. Please retry.")
-        blink_red_led()
+        blink_red_led(index=0, blink_duration=5, blink_delay=0.5)
         return
     
     # Generate image filename with weight
@@ -181,6 +239,9 @@ def capture_and_save():
 
     # Get stable weight measurement
     middle_value = read_stable_weight()
+    
+    #Hardcode
+    image_path = "/home/user/project/images/food.jpeg"
 
     # Send the captured image to the API
     send_to_api(image_path, middle_value)
@@ -188,6 +249,10 @@ def capture_and_save():
 def send_to_api(image_path, weight):
     """Upload the captured image to the API with the specified weight."""
     print("Uploading image and weight to API...")
+
+    # Start LED circle animation in a separate thread
+    led_thread = threading.Thread(target=led_circle, daemon=True)
+    led_thread.start()
 
     try:
         files = {"image": open(image_path, "rb")}
@@ -198,6 +263,13 @@ def send_to_api(image_path, weight):
         response = requests.post(url, headers=headers, files=files, data=data)
         response.raise_for_status()  # Raise error for bad responses (4xx, 5xx)
 
+        # **STOP LED CIRCLE when response is received**
+        stop_led_circle()
+        led_thread.join()
+
+        # Show green light for 5 seconds
+        show_green_light(duration=5)
+
         # Parse and print JSON response
         json_data = response.json()
         print("\nAPI Response:")
@@ -205,6 +277,8 @@ def send_to_api(image_path, weight):
 
     except requests.exceptions.RequestException as e:
         print(f"API request failed: {e}")
+        stop_led_circle()
+        led_thread.join()
 
 def monitor_button():
     """Continuously monitor the button press and capture an image when pressed."""
