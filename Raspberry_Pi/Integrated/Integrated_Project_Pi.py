@@ -12,7 +12,7 @@ import board
 import neopixel
 
 # API Endpoint
-url = "http://f7e3-103-30-215-142.ngrok-free.app/api/process-image"
+url = "https://6d65-103-30-215-142.ngrok-free.app/api/process-image"
 api_key = "keCnRXk6xJ5qtq3VEkb5nmiMcj2n1yCy"
 
 # Set the directory to save images
@@ -51,13 +51,17 @@ BRIGHTNESS = 0.1
 # Initialize the LED
 pixels = neopixel.NeoPixel(LED_PIN, NUM_LEDS, brightness=BRIGHTNESS, auto_write=False)
 
-previous_frame = None  # Global variable for motion detection
+# Global variable for motion detection
+previous_frame = None  
 
 # Flag to control LED animation
 led_running = False
 
 # Flag to control the webcam GUI
 gui_running = True
+
+# Global flag to control if button should trigger capture
+button_enabled = True  
 
 def blink_red_led(index=0, blink_duration=5, blink_delay=0.5, color=(255, 0, 0)):  # Red light
     start_time = time.time()
@@ -127,6 +131,9 @@ def show_camera_gui():
     """Function to display webcam feed in a separate thread."""
     global gui_running
 
+    # Instruction
+    print("Prepare your food on the weighing scale and press the button to start")  
+
     while gui_running:
         success, frame = camera.read()
         if not success:
@@ -178,6 +185,8 @@ def detect_blurry(image, threshold=150):
 def read_stable_weight():
     """Read 10 weight values, remove outliers, and return the median weight."""
     print("Scale initialized. Reading weight...")
+    print("Please take the food away first. Let the load cell be empty in order to get the correct weight.")
+    input("Press Enter to Continue")
     weight_values = [] # Array to store weight values
     
     weight = read_weight()
@@ -212,21 +221,27 @@ def read_stable_weight():
 
 def capture_and_save():
     """Capture an image, prompt user for weight, save it, and send it to the API."""
+    
+    global button_enabled
+    button_enabled = False
+    
     success, frame = camera.read()
     if not success:
         print("Failed to capture image")
         return
         
     # Detect motion or blurriness
-#     if detect_motion(frame):
-#         print("Red Indicator: Motion detected. Please stay still.")
-#         blink_red_led()
-#         return
+    # if detect_motion(frame):
+    #     print("Red Indicator: Motion detected. Please stay still.")
+    #     button_enabled = True
+    #     blink_red_led()
+    #     return
         
-    if detect_blurry(frame):
-        print("Red Indicator: Image is blurry. Please retry.")
-        blink_red_led(index=0, blink_duration=5, blink_delay=0.5)
-        return
+    # if detect_blurry(frame):
+    #     print("Red Indicator: Image is blurry. Please retry.")
+    #     button_enabled = True
+    #     blink_red_led(index=0, blink_duration=5, blink_delay=0.5)
+    #     return
     
     # Generate image filename with weight
     timestamp = time.strftime('%Y%m%d%H%M%S')
@@ -241,10 +256,13 @@ def capture_and_save():
     middle_value = read_stable_weight()
     
     #Hardcode
-    image_path = "/home/user/project/images/food.jpeg"
+    image_path = "/home/user/project/images/nasi.jpg"
 
     # Send the captured image to the API
     send_to_api(image_path, middle_value)
+
+    # Re-enable after completion
+    button_enabled = True  
 
 def send_to_api(image_path, weight):
     """Upload the captured image to the API with the specified weight."""
@@ -282,10 +300,11 @@ def send_to_api(image_path, weight):
 
 def monitor_button():
     """Continuously monitor the button press and capture an image when pressed."""
+    global button_enabled
     try:
         while True:
             time.sleep(0.1)
-            if GPIO.input(BUTTON_PIN) == GPIO.LOW:  # Button is pressed
+            if GPIO.input(BUTTON_PIN) == GPIO.LOW and button_enabled:
                 print("Button is pressed, capturing image...")
                 capture_and_save()
     except KeyboardInterrupt:
