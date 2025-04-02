@@ -12,8 +12,8 @@ import board
 import neopixel
 
 # API Endpoint
-url = "https://6d65-103-30-215-142.ngrok-free.app/api/process-image"
-api_key = "keCnRXk6xJ5qtq3VEkb5nmiMcj2n1yCy"
+url = "https://ea1d-103-30-215-142.ngrok-free.app/api/process-image"
+api_key = "sRMWrC0xMWJR0ZcjKl_vnhfBe-VrKx3-FwYybAB7M_w"
 
 # Set the directory to save images
 save_dir = os.path.join(os.getcwd(), "images")  # Saves in projectfolder/images/
@@ -184,15 +184,10 @@ def detect_blurry(image, threshold=150):
 
 def read_stable_weight():
     """Read 10 weight values, remove outliers, and return the median weight."""
-    print("Scale initialized. Reading weight...")
-    print("Please take the food away first. Let the load cell be empty in order to get the correct weight.")
-    input("Press Enter to Continue")
     weight_values = [] # Array to store weight values
     
     weight = read_weight()
-    input("Ready? Press Enter to continue...")
-    
-    print("Please wait for the weight reading")
+   
     while len(weight_values) < 10:
         weight = read_weight()
         # to debug the weight value
@@ -256,7 +251,7 @@ def capture_and_save():
     middle_value = read_stable_weight()
     
     #Hardcode
-    image_path = "/home/user/project/images/nasi.jpg"
+    image_path = "/home/user/project/images/food.jpeg"
 
     # Send the captured image to the API
     send_to_api(image_path, middle_value)
