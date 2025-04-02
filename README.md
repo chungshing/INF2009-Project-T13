@@ -1,6 +1,6 @@
 # INF2009-Project-T13
 
-## Project Documentation/Timeline can be found in the file, Documentation Diary.docx.
+## Project Documentation/Timeline can be found in Documentation Diary.docx.
 
 **HawkerScan** is a combined Streamlit + Flask application that:
 - Recognizes local Singaporean dishes in images via an AI model.
